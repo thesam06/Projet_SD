@@ -14,3 +14,6 @@ Auto encherir c'est :
 4) si quel qu'un vient et met 510
 5) le logiciel met 511 //MUHAHAHAHA et comme ca jusqu'a mille...
 eviter vrai dialoguedes messages precisesverifier la coherence...
+
+Pour ajouter la gestion de base de donnée en Java, il faut faire la partie 2 du tutoriel suivant :
+http://www.objis.com/formation-java/tutoriel-java-acces-donnees-jdbc.html
