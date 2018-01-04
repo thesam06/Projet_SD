@@ -14,19 +14,24 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
 public class Message {
-	public String id;
+	public int    id;
+	public String nom;
 	public String login;
+	public String prenom;
 	public String password;
+
 	public ArrayList<String> messages;
 	
-	public Message(String id, String login, String password) {
+	public Message(int id, String nom, String prenom,String login, String password) {
 		this.id = id;
+		this.nom = nom;
 		this.login = login;
+		this.prenom = prenom;
 		this.password = password;
 		messages = new ArrayList<String>();
 	}
 
-	public String getId() {
+	public int getId() {
 		return id;
 	}
 	public String getLogin() {

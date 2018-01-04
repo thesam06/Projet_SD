@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.Charset;
+
+import bd.ClientBD;
 import messeges.Message;
 
 public class ServiceClient implements Runnable {
@@ -23,7 +25,9 @@ public class ServiceClient implements Runnable {
 		try {
 			if (my_connection != null) {
 				System.out.format("Terminaison pour %s\n", id);
-				message.save();
+				if (message != null) {
+					message.save();
+				}
 				my_connection.close();
 			}
 		} catch (IOException e) {
@@ -63,53 +67,140 @@ public class ServiceClient implements Runnable {
 		int line_num = 0;
 		// Fin de l initialisation
 		// Boucle principale
-
-		while (true) {
-			try {
-				message_lu = flux_entrant.readLine();
-				message.addMessage(message_lu);
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
+		if (message != null) {
+			System.out.println("le client a reussi de se connecter");
+			while (true) {
+				try {
+					message_lu = flux_entrant.readLine();
+					message.addMessage(message_lu);
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+				}
+				if (message_lu == null) {
+					System.out.println("Client deconnecté, je termine\n");
+					terminer();
+					return;
+				}
+				System.out.format("%s [line_%d]--> [%s]]\n", id, line_num, message_lu);
+				if (message_lu.contains(Finish)) {
+					System.out.format("[%s] :  [%s] recu, Transmission finie\n", id, message_lu);
+					ma_sortie.println("Fermeture de la connexion");
+					terminer();
+					return;
+				}
+				line_num++;
 			}
-			if (message_lu == null) {
-				System.out.println("Client deconnecté, je termine\n");
-				terminer();
-				return;
-			}
-			System.out.format("%s [line_%d]--> [%s]]\n", id, line_num, message_lu);
-			if (message_lu.contains(Finish)) {
-				System.out.format("[%s] :  [%s] recu, Transmission finie\n", id, message_lu);
-				ma_sortie.println("Fermeture de la connexion");
-				terminer();
-				return;
-			}
-			line_num++;
 		}
 
 	}
 
+	public boolean check(String str) {
+		if (str == null || str.contains(Finish)) {
+			System.out.println("Client deconnecté, je termine\n");
+			terminer();
+			return false;
+		} else {
+			return true;
+		}
+	}
+
 	private void login(BufferedReader flux_entrant, PrintWriter ma_sortie) {
+		ClientBD cbd = new ClientBD();
+		ma_sortie.println("");
+		ma_sortie.println("Vous etez deja client chez nous? Oui/Non");
 		try {
-			ma_sortie.println("");
-			ma_sortie.println("Please enter your login:");
-			login = flux_entrant.readLine();
-			if (login == null || login.contains(Finish)) {
-				System.out.println("Client deconnecté, je termine\n");
-				terminer();
+			String reponse = flux_entrant.readLine();
+			if (reponse.contains("Oui")) {
+				continuerLogin(flux_entrant, ma_sortie, cbd);
+			} else if (reponse.contains("Non")) {
+				creationNouveauClient(flux_entrant, ma_sortie, cbd);
+				continuerLogin(flux_entrant, ma_sortie, cbd);
 			} else {
+				ma_sortie.println("Response invalide, veuilles repondre par Oui ou Non!");
+				login(flux_entrant, ma_sortie);
+			}
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	}
+
+	private void creationNouveauClient(BufferedReader flux_entrant, PrintWriter ma_sortie, ClientBD cbd) {
+		boolean confirm = false;
+		String nom = "", prenom = "", user = "", motdepasse = "", motdepasse2 = "";
+		do {
+			try {
+				ma_sortie.println("");
+				ma_sortie.println("Entrez votre nom svp: ");
+				nom = flux_entrant.readLine();
+				if (!check(nom)) {
+					return;
+				}
+				ma_sortie.println("Entrez votre prenom svp: ");
+				prenom = flux_entrant.readLine();
+				if (!check(prenom)) {
+					return;
+				}
+				ma_sortie.println("Entrez votre login svp: ");
+				user = flux_entrant.readLine();
+				if (!check(user)) {
+					return;
+				}
+				ma_sortie.println("Entrez votre motdepasse svp: ");
+				motdepasse = flux_entrant.readLine();
+				if (!check(motdepasse)) {
+					return;
+				}
+				ma_sortie.println("Confirmez votre motdepasse svp: ");
+				motdepasse2 = flux_entrant.readLine();
+				if (motdepasse.contentEquals(motdepasse2)) {
+					ma_sortie.println("Confirmez svp par Oui/Non: ");
+					ma_sortie.println(String.format("nom = %s , prenom = %s , login = %s , motdepasse = %s",
+							nom, prenom, user, motdepasse));
+					String reponseConfirmant = flux_entrant.readLine();
+					if (reponseConfirmant.contains("Oui")) {
+						confirm = true;
+					} else if (reponseConfirmant.contains("Non")) {
+						ma_sortie.println("Alors on recommence...");
+					} else {
+						ma_sortie.println("Il falait repondre par Oui ou Non... On recomence!");
+					}
+				} else {
+					ma_sortie.println("les mot de passes ne sont pas identiques... on recommence!");
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} while (!confirm);
+		cbd.ajouterClient(nom, prenom, user, motdepasse);
+		System.out.println("[Serveur]: Nouveau Client!");
+		System.out.println(String.format("nom = %s , prenom = %s , login = %s , motdepasse = %s", nom, prenom,
+				user, motdepasse));
+	}
+
+	private void continuerLogin(BufferedReader flux_entrant, PrintWriter ma_sortie, ClientBD cbd) {
+		while (!cbd.connectionClient(login, password)) {
+			try {
+				ma_sortie.println("");
+				ma_sortie.println("Please enter your login:");
+				login = flux_entrant.readLine();
+				if (!check(login)) {
+					return;
+				}
 				ma_sortie.println("Please enter your password:");
 				password = flux_entrant.readLine();
-				if (password == null || password.contains(Finish)) {
-					System.out.println("Client deconnecté, je termine\n");
-					terminer();
-				} else {
-					message = new Message(id,login,password);
-					System.out.format("[%s] : Client logged with login: %s and password: %s \n", id, login,
-							password);
+				if (!check(password)) {
+					return;
 				}
+				if (!cbd.connectionClient(login, password)) {
+					ma_sortie.println("login ou mot de pass est incorrect! veuillez reessayer...");
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
+		cbd.chargerInfoClient(login);
+		
+		message = new Message(cbd.getIdClient(),cbd.getNom(),cbd.getPrenom(), login, password);
+		System.out.format("[%s] : Client logged with login: %s and password: %s \n", id, login, password);
 	}
 }
